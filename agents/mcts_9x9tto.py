@@ -37,10 +37,8 @@ class MCTS_9x9_TTOAgent(Agent):
         start_time = datetime.datetime.now()
         state = GameState(chess_board, 0, my_pos, adv_pos, max_step)
         root_node = MCTSNode(state)
-        #simulation_no = 100
 
         while (datetime.datetime.now() - start_time).total_seconds() < 1.95:
-            #print("Tree Policy")
             v = root_node.tree_policy()
             p0_score, p1_score = v.rollout() # return p0_score, p1_score
             v.backpropagate(p0_score, p1_score)
@@ -50,7 +48,6 @@ class MCTS_9x9_TTOAgent(Agent):
             if c.num_visits > most_visits:
                 most_visits = c.num_visits
                 best_action = c.parent_action
-        #print("best action num visits: " + str(most_visits))
         return best_action
 
 class MCTSNode():

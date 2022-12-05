@@ -52,7 +52,6 @@ class MCTS_UCB1_TunedAgent(Agent):
             self.search(start_time + 2 - time() - buffer_time)
         
         best_action = self.best_action()
-        #print("best_action: " + str(best_action))
         self.take_action(best_action)
 
         return best_action
@@ -63,7 +62,7 @@ class MCTS_UCB1_TunedAgent(Agent):
         specified amount of time in seconds.
         """
         start_time = time()
-        #print("search for: " + str(time_budget))
+
         # do until we exceed our time budget
         while time() - start_time < time_budget:
             node, state = self.select_node()
@@ -133,8 +132,6 @@ class MCTS_UCB1_TunedAgent(Agent):
             int: winner of the game
         """
         actions = state.actions()  # Get a list of all possible moves in current state of the game
-        # if len(actions) == 0:
-            # print("length of actions is 0 ")
 
         while state.winner == None:
             move = random.choice(actions)
@@ -173,7 +170,7 @@ class MCTS_UCB1_TunedAgent(Agent):
         # Should never happen
         if self.root_state.winner != None:
             print("Game already over...?")
-            return GameMeta.GAME_OVER
+            return -1
 
         # choose the move of the most simulated node breaking ties randomly
         max_value = max(self.root.children.values(), key=lambda n: n.N).N
@@ -268,9 +265,6 @@ class GameState:
     # PLAYERS = {"none": 0, "me": 1, "adv": 2}
     # I'm always player 1, adversay is always player 2
 
-    # action value of -1 indicates the game has ended so no action is possible
-    # GAME_OVER = -1
-
     def __init__(self, chess_board, my_pos, adv_pos, max_step):
         """
         Initialize the game board and give white first turn.
@@ -307,7 +301,7 @@ class GameState:
             else:
                 return GameMeta.PLAYERS["none"]
         
-        print("ERROR - SHOULD REACH HERE AS A WINNER SHOULD BE ASSIGNED")
+        print("ERROR - SHOULDN'T REACH HERE AS A WINNER SHOULD BE ASSIGNED")
         return None
         
 
@@ -457,6 +451,5 @@ def tuple_equal(t1: tuple, t2: tuple):
 class GameMeta:
     PLAYERS = {'none': 0, 'me': 1, 'adv': 2}
     INF = float('inf')
-    GAME_OVER = -1      # -1 indicates the game is not over
     MOVES = ((-1, 0), (0, 1), (1, 0), (0, -1))
     OPPOSITES = {0: 2, 1: 3, 2: 0, 3: 1}
