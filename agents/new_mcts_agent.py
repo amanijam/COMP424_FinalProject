@@ -7,7 +7,7 @@ from collections import defaultdict
 from copy import deepcopy
 import random, math
 
-import numpy as np # REMOVE
+#import numpy as np # REMOVE
 
 # Code outline credit: https://ai-boson.github.io/mcts/
 
@@ -15,7 +15,7 @@ import numpy as np # REMOVE
 class NewMCTSAgent(Agent):
     def __init__(self):
         super(NewMCTSAgent, self).__init__()
-        self.name = "StudentAgent"
+        self.name = "New_MCTS_Agent"
         self.dir_map = {"u": 0, "r": 1, "d": 2, "l": 3}
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
@@ -36,20 +36,23 @@ class NewMCTSAgent(Agent):
         start_t = datetime.datetime.now()
 
         # Initialize MCTS Tree
-        state = GameState(chess_board, 0, np.asarray(my_pos), np.asarray(adv_pos), max_step)
+        state = GameState(chess_board, 0, my_pos, adv_pos, max_step)
         root_node = MCTSNode(state)
         # p0_score, p1_score = root_node.simulate() # do first simulation
         # root_node.backpropagate(p0_score, p1_score)
 
         while (datetime.datetime.now() - start_t).total_seconds() < 5:
-            selected_leaf = root_node.select()
-            if not selected_leaf.state.is_endgame:
-                child_node = selected_leaf.expand()
-                p0_score, p1_score = child_node.simulate()
+            #print("Selecting a leaf")
+            #print("Tree Policy")
+            selected_node = root_node.tree_policy()
+            if not selected_node.state.is_endgame:
+                #print("Simulate")
+                p0_score, p1_score = selected_node.simulate()
             else:
-                p0_score = selected_leaf.state.p0_score
-                p1_score = selected_leaf.state.p1_score
-            child_node.backpropagate(p0_score, p1_score)
+                p0_score = selected_node.state.p0_score
+                p1_score = selected_node.state.p1_score
+            #print("Backpropagate")
+            selected_node.backpropagate(p0_score, p1_score)
 
         if len(root_node.children) == 0:
             print("Root has no children, returning a random action")
@@ -71,73 +74,75 @@ class MCTSNode():
         self.children = []
         self.num_wins = 0
         self.num_visits = 0
-        #self._untried_actions = state.legal_actions
+        #self.fully_expanded = False
+        self.untried_actions = state.get_legal_actions()
 
-    def is_leaf_node(self):
-        return (len(self.children) == 0)
-    
     def is_fully_expanded(self):
-        return len(self._untried_actions) == 0
-
-    def unvisited_child(self, c_param=math.sqrt(2)):
-        best_child = self
-        best_value = -math.inf
-        for c in self.children:
-            q_value = c.num_wins/c.num_visits + c_param * math.sqrt(math.log(self.num_visits)/c.num_visits)
-            if q_value > best_value:
-                best_child = c
-
-        return best_child    
+        return len(self.untried_actions) == 0
 
     def best_child(self, c_param=math.sqrt(2)):
-        best_child = None
         best_value = -math.inf
         for c in self.children:
-            if c.num_visits == 0:
-                continue
             q_value = c.num_wins/c.num_visits + c_param * math.sqrt(math.log(self.num_visits)/c.num_visits)
             if q_value > best_value:
+                best_value = q_value
                 best_child = c
+        #print("Best child value: " + str(best_value))
+        return best_child
 
-        return best_child     
-
-    def select(self, c_param=math.sqrt(2)):
+    def tree_policy(self):
         """
         Traverse tree using tree policy
         """
-        selected_node = self
-        while not selected_node.is_leaf_node(): 
-            # Pick the best child unless we find one that hasn't been visited yet
-            best_value = -math.inf
-            for c in self.children:
-                if c.num_visits == 0:
-                    return c
-                q_value = c.num_wins/c.num_visits + c_param * math.sqrt(math.log(self.num_visits)/c.num_visits)
-                if q_value > best_value:
-                    best_value = q_value
-                    best_child = c
-            selected_node = best_child
+        curr_node = self
+        while not curr_node.state.is_endgame: 
+            # Pick an unvisited child
+            if not curr_node.is_fully_expanded():
+                return curr_node.expand()
+            else:
+                curr_node = curr_node.best_child()
+        return curr_node
+        # selected_node = self
+        # while not selected_node.is_leaf_node(): 
+        #     # Pick the best child unless we find one that hasn't been visited yet
+        #     for c in self.children:
+        #         if c.num_visits == 0:
+        #             #print("Found unexpanded node")
+        #             return c
+        #     print("No unexpanded children! Select best one")
+        #     best_child = selected_node.best_child()
+        #     print("best child, leaf?: " + str(best_child.is_leaf_node()))
+        #     input("press something")
+        #     selected_node = best_child
         
-        return selected_node
+        # return selected_node
 
     def expand(self):
         """
         Create child node for each legal action
         Return a random child node
         """   
-        for a in self.state.get_legal_actions():
-            #print("Action: " + str(a))
-            next_state = self.state.move(a)
-            child_node = MCTSNode(next_state, parent=self, parent_action=a)
-            self.children.append(child_node)
-        random_index = random.randrange(len(self.children))
-        return self.children[random_index]
+        random_index = random.randrange(len(self.untried_actions))
+        a = self.untried_actions.pop(random_index)
+        next_state = self.state.move(a)
+        child_node = MCTSNode(next_state, parent=self, parent_action=a)
+        self.children.append(child_node)
+        return child_node
+        # for a in self.state.get_legal_actions():
+        #     #print("Action: " + str(a))
+        #     next_state = self.state.move(a)
+        #     child_node = MCTSNode(next_state, parent=self, parent_action=a)
+        #     self.children.append(child_node)
+        # random_index = random.randrange(len(self.children))
+        # return self.children[random_index]
 
     def simulate(self):
         curr_state = self.state  
         #input("Doing one random game iteration, Press Enter to continue...")
         while not curr_state.is_endgame:
+            print("find random action")
             action = curr_state.random_action() # random default policy
+            print("make move")
             curr_state = curr_state.move(action)
         #input("Done with simulation, returning scores, Press Enter to continue...")
         return curr_state.scores()
@@ -151,18 +156,6 @@ class MCTSNode():
 
         if self.parent:
             self.parent.backpropagate(p0_score, p1_score)
-
-
-    def _tree_policy(self):
-        current_node = self
-
-        while not current_node.is_terminal_node:
-            if not current_node.is_fully_expanded():
-                #input("Expanding current node, Press Enter to continue...")
-                return current_node.expand()
-            else:
-                current_node = current_node.best_child()
-        return current_node
 
 # Data structure that holds information about a game state
 class GameState:
@@ -218,19 +211,25 @@ class GameState:
 
         # BFS
         state_queue = [(self.my_pos, 0)]
-        visited = {tuple(self.my_pos)}
-        #is_reached = False
+        visited = {self.my_pos}
         while state_queue:
             cur_pos, cur_step = state_queue.pop(0)
             r, c = cur_pos
             if cur_step == self.max_step:
                 break
             for move_dir, move in enumerate(self.moves):
-                if self.chess_board[r, c, move_dir] or np.array_equal(cur_pos + move, self.adv_pos) or tuple(cur_pos + move) in visited:
+                if self.chess_board[r, c, move_dir] or tuple_equal(cur_pos + move, self.adv_pos) or tuple(cur_pos + move) in visited:
                     continue
-                
-                next_pos = cur_pos + move
-                next_pos_r, next_pos_c = tuple(next_pos)
+
+                # if not type(cur_pos) is tuple:
+                #     print("cur_pos type: " + str(type(cur_pos)))
+                # if not type(move) is tuple:
+                #     print("move type: " + str(type(move)))
+                next_pos = (cur_pos[0] + move[0], cur_pos[1] + move[1])
+                # if not type(next_pos) is tuple:
+                #     print("next_pos type: " + str(type(next_pos)))
+                #print("next_pos: " + str(next_pos))
+                next_pos_r, next_pos_c = next_pos
                 for barrier_dir in range(4):
                     if not self.chess_board[next_pos_r, next_pos_c, barrier_dir]:
                         #print("Adding legal action " + str(tuple([tuple(next_pos), barrier_dir])))
@@ -241,21 +240,21 @@ class GameState:
 
     def random_action(self): 
         new_pos = self.my_pos
-        steps = np.random.randint(0, self.max_step + 1)
+        steps = random.randrange(self.max_step + 1)
 
         for _ in range(steps):
             r, c = self.my_pos
-            dir = np.random.randint(0, 4)
+            dir = random.randrange(0, 4)
             m_r, m_c = self.moves[dir]
             new_pos = (r + m_r, c + m_c)
 
             # Special Case enclosed by Adversary
             k = 0
-            while self.chess_board[r, c, dir] or np.array_equal(new_pos, self.adv_pos):
+            while self.chess_board[r, c, dir] or tuple_equal(new_pos, self.adv_pos):
                 k += 1
                 if k > 300:
                     break
-                dir = np.random.randint(0, 4)
+                dir = random.randrange(0, 4)
                 m_r, m_c = self.moves[dir]
                 new_pos = (r + m_r, c + m_c)
 
@@ -263,10 +262,10 @@ class GameState:
                 new_pos = self.my_pos
                 break
 
-        dir = np.random.randint(0, 4)
+        dir = random.randrange(4)
         r, c = new_pos
         while self.chess_board[r, c, dir]:
-            dir = np.random.randint(0, 4)
+            dir = random.randrange(4)
 
         return (new_pos, dir)
 
@@ -319,6 +318,8 @@ class GameState:
         next_state = GameState(updated_chessboard, next_player_turn, p0_pos, p1_pos, self.max_step)
         return next_state
 
+def tuple_equal(t1: tuple, t2: tuple):
+    return (t1[0] == t2[0] and t1[1] == t2[1])
 
 def set_barrier(old_chessboard, r, c, dir):
     moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
@@ -390,41 +391,3 @@ def check_endgame(chess_board, p0_pos, p1_pos):
         return False, p0_score, p1_score
     
     return True, p0_score, p1_score
-
-def check_valid_step(chess_board, start_pos, end_pos, adv_pos, barrier_dir, max_step):
-    """
-    Check if the step the agent takes is valid (reachable and within max steps).
-    """
-    # Endpoint already has barrier or is boarder
-    r, c = end_pos
-    if chess_board[r, c, barrier_dir]:
-        return False
-    if np.array_equal(start_pos, end_pos):
-        return True
-
-    moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
-
-    # BFS
-    state_queue = [(start_pos, 0)]
-    visited = {tuple(start_pos)}
-    is_reached = False
-    while state_queue and not is_reached:
-        cur_pos, cur_step = state_queue.pop(0)
-        r, c = cur_pos
-        if cur_step == max_step:
-            break
-        for dir, move in enumerate(moves):
-            if chess_board[r, c, dir]:
-                continue
-            
-            next_pos = cur_pos + move
-            if np.array_equal(next_pos, adv_pos) or tuple(next_pos) in visited:
-                continue
-            if np.array_equal(next_pos, end_pos):
-                is_reached = True
-                break
-
-            visited.add(tuple(next_pos))
-            state_queue.append((next_pos, cur_step + 1))
-
-    return is_reached

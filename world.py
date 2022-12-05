@@ -209,6 +209,7 @@ class World:
                 tuple(adv_pos),
                 self.max_step,
             )
+            #print("Player " + str(self.turn) + " took " + str(time() - start_time) + " to take that step.")
             self.update_player_time(time() - start_time)
 
             next_pos = np.asarray(next_pos, dtype=cur_pos.dtype)
